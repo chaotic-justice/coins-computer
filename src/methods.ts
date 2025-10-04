@@ -13,6 +13,16 @@ interface StackStats {
 	distribution: Bills;
 }
 
+interface BodyInput {
+	"5": number;
+	"10": number;
+	"20": number;
+	"50": number;
+	"100": number;
+	selectedAmount?: number;
+	selectedCombination?: number[];
+}
+
 function memoize<T extends (...args: any[]) => any>(fn: T): T {
 	const cache = new Map();
 	return function (...args: any[]) {
@@ -24,6 +34,23 @@ function memoize<T extends (...args: any[]) => any>(fn: T): T {
 		cache.set(key, result);
 		return result;
 	} as T;
+}
+
+function extractBillsFromBody(body: BodyInput): [Bills, number] {
+	const keysToExtract = ["5", "10", "20", "50", "100"];
+	const obj = Object.fromEntries(
+		Object.entries(body).filter(([key]) => keysToExtract.includes(key)),
+	);
+	const bills: Bills = {};
+	for (const [k, v] of Object.entries(obj)) {
+		bills[parseInt(k, 10)] = v;
+	}
+	const total = Object.entries(bills).reduce(
+		(sum, [denom, count]) => sum + parseInt(denom, 10) * count,
+		0,
+	);
+
+	return [bills, total];
 }
 
 function convertBillingInputToDict(body: any): {
@@ -103,18 +130,20 @@ function findSubtractionOptions(totalValue: number, bills: Bills): number[] {
 	}
 
 	const neededRemainder = remainder;
-
 	const possibleAmounts: number[] = [];
 
 	const cacheSize = Math.min(100, totalValue);
 	for (let amount = 1; amount <= cacheSize; amount++) {
-		if (amount % 3 === neededRemainder && amount < totalValue) {
+		if (amount % 3 === neededRemainder) {
 			possibleAmounts.push(amount);
 		}
 	}
 
 	const validAmounts: number[] = [];
 	for (const amount of possibleAmounts) {
+		if (amount > totalValue) {
+			continue;
+		}
 		if (
 			canRemoveAmount(bills, amount) &&
 			canAchievePerfectDistribution(bills, amount)
@@ -160,16 +189,15 @@ function canAchievePerfectDistribution(
 		return false;
 	}
 
-	const targetPerStack = remainingValue / 3;
-
+	const targetPerStack = Math.floor(remainingValue / 3);
 	const allBills: number[] = [];
+
 	for (const [denomination, count] of Object.entries(remainingBills)) {
 		const denom = parseInt(denomination, 10);
 		allBills.push(...Array(count).fill(denom));
 	}
 
 	allBills.sort((a, b) => b - a);
-
 	return canDistributePerfectly(allBills, targetPerStack, 3);
 }
 
@@ -186,7 +214,7 @@ function canDistributePerfectly(
 	const stacks = Array(numStacks).fill(0);
 	bills.sort((a, b) => b - a);
 
-	function backtrack(index: number): boolean {
+	const backtrack = (index: number): boolean => {
 		if (index === bills.length) {
 			return stacks.every((stack) => stack === target);
 		}
@@ -206,7 +234,7 @@ function canDistributePerfectly(
 			}
 		}
 		return false;
-	}
+	};
 
 	return backtrack(0);
 }
@@ -233,13 +261,13 @@ function getRemovalCombination(
 	targetAmount: number,
 ): RemovalCombination | null {
 	const denominations = [100, 50, 20, 10, 5];
-	const memo = new Map();
+	const memo = new Map<string, RemovalCombination | null>();
 
-	function findCombination(
+	const findCombination = (
 		remainingAmount: number,
 		denomIndex: number,
 		billsRemaining: number[],
-	): RemovalCombination | null {
+	): RemovalCombination | null => {
 		if (remainingAmount === 0) {
 			return {};
 		}
@@ -249,16 +277,16 @@ function getRemovalCombination(
 
 		const key = JSON.stringify([remainingAmount, denomIndex, billsRemaining]);
 		if (memo.has(key)) {
-			return memo.get(key);
+			return memo.get(key)!;
 		}
 
 		const denom = denominations[denomIndex];
 		const maxAvailable = billsRemaining[denomIndex];
-
 		const maxCount = Math.min(
 			maxAvailable,
 			Math.floor(remainingAmount / denom),
 		);
+
 		for (let count = maxCount; count >= 0; count--) {
 			const newRemaining = remainingAmount - count * denom;
 			const newBillsRemaining = [...billsRemaining];
@@ -281,7 +309,7 @@ function getRemovalCombination(
 
 		memo.set(key, null);
 		return null;
-	}
+	};
 
 	const billsList = denominations.map((denom) => bills[denom] || 0);
 	return findCombination(targetAmount, 0, billsList);
@@ -401,10 +429,7 @@ function splitBillsEvenly(bills: Bills): Bills[] {
 		allBills.push(...Array(count).fill(denom));
 	}
 
-	const totalValue = allBills.reduce((sum, bill) => sum + bill, 0);
-
 	allBills.sort((a, b) => b - a);
-	console.log("allBills", allBills);
 
 	const stacks: Bills[] = [
 		{ 5: 0, 10: 0, 20: 0, 50: 0, 100: 0 },
@@ -486,7 +511,7 @@ function calculateStackStats(stacks: Bills[]): StackStats[] {
 		let totalBills = 0;
 
 		for (const [denom, count] of Object.entries(stack)) {
-			totalValue += parseInt(denom) * count;
+			totalValue += parseInt(denom, 10) * count;
 			totalBills += count;
 		}
 
@@ -507,7 +532,7 @@ function displayResults(
 ): StackStats[] {
 	let totalOriginalValue = 0;
 	for (const [denom, count] of Object.entries(originalBills)) {
-		totalOriginalValue += parseInt(denom) * count;
+		totalOriginalValue += parseInt(denom, 10) * count;
 	}
 
 	const stats = calculateStackStats(stacks);
@@ -536,6 +561,7 @@ export {
 	refineDistribution,
 	calculateStackStats,
 	displayResults,
+	extractBillsFromBody,
 };
 
 export type { Bills, RemovalCombination, StackStats };

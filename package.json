@@ -1,14 +1,24 @@
 {
   "name": "coins-computer",
   "version": "1.0.50",
+  "type": "module",
   "scripts": {
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint:fix": "biome lint --fix .",
+    "check": "biome check --apply .",
+    "check:ci": "biome ci .",
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "bun run --watch src/index.ts"
   },
   "dependencies": {
+    "@elysiajs/cors": "^1.4.0",
+    "@elysiajs/openapi": "^1.4.11",
     "elysia": "latest"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.2.5",
     "bun-types": "latest"
   },
   "module": "src/index.js"
