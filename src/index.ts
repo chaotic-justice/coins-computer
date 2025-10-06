@@ -3,7 +3,11 @@ import { Elysia } from "elysia";
 import { bills } from "./bills";
 import cors from "@elysiajs/cors";
 
-const ALLOWED_ORIGINS = ["http://localhost:8787", "http://localhost:3000"];
+const ALLOWED_ORIGINS = [
+	"http://localhost:8787",
+	"http://localhost:5173",
+	"http://localhost:3001",
+];
 
 const app = new Elysia()
 	.use(

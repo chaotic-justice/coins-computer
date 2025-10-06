@@ -10,11 +10,11 @@ import {
 // status 422 for invalid index
 
 const BillsBase = t.Object({
-	"5": t.Number(),
-	"10": t.Number(),
-	"20": t.Number(),
-	"50": t.Number(),
-	"100": t.Number(),
+	"5": t.Number({ minimum: 0 }),
+	"10": t.Number({ minimum: 0 }),
+	"20": t.Number({ minimum: 0 }),
+	"50": t.Number({ minimum: 0 }),
+	"100": t.Number({ minimum: 0 }),
 });
 
 export const bills = new Elysia({ prefix: "/bills" })
@@ -25,42 +25,11 @@ export const bills = new Elysia({ prefix: "/bills" })
 		});
 	})
 	.post(
-		"/perfect",
-		({ body, status }) => {
-			const [bills, total] = extractBillsFromBody(body);
-			const stacks = splitBillsEvenly(bills);
-			const subtracted_amount = 0;
-			const stats = displayResults({ ...bills }, stacks, subtracted_amount);
-			return stats;
-		},
-		{
-			body: BillsBase,
-		},
-	)
-	.post(
-		"/imperfect-i",
-		({ body, status }) => {
-			const [bills, total] = extractBillsFromBody(body);
-			const optionDetails = selectSubtractionAmountI(total, bills);
-			console.log("optionDetails", optionDetails);
-			// const options_dict = {}
-			// for i, (amount, combination, description) in enumerate(option_details, 1):
-			//   options_dict[i] = {'amount': amount, 'combination': combination, 'description': description}
-			return optionDetails;
-		},
-		{
-			body: t.Object({
-				...BillsBase.properties,
-				totalValue: t.Number(),
-			}),
-		},
-	)
-	.post(
 		"/imperfect-ii",
 		({ body, status }) => {
 			const [bills, total] = extractBillsFromBody(body);
-			const selectedAmount = body.selectedAmount;
-			const selectedCombination = body.selectedCombination;
+			const selectedAmount = body.amount;
+			const selectedCombination = body.combination;
 			if (selectedAmount === 0) {
 				return status(400, "selected_amount must be greater than 0");
 			}
@@ -75,8 +44,24 @@ export const bills = new Elysia({ prefix: "/bills" })
 		{
 			body: t.Object({
 				...BillsBase.properties,
-				selectedAmount: t.Number(),
-				selectedCombination: t.Array(t.Number()),
+				amount: t.Number(),
+				combination: t.Record(t.String(), t.Number()),
 			}),
 		},
-	);
+	)
+	.guard({
+		body: BillsBase,
+	})
+	.post("/perfect", ({ body, status }) => {
+		const [bills, total] = extractBillsFromBody(body);
+		const stacks = splitBillsEvenly(bills);
+		const subtracted_amount = 0;
+		const stats = displayResults({ ...bills }, stacks, subtracted_amount);
+		return stats;
+	})
+	.post("/imperfect-i", ({ body, status }) => {
+		const [bills, total] = extractBillsFromBody(body);
+		const optionDetails = selectSubtractionAmountI(total, bills);
+		return optionDetails;
+	});
+
