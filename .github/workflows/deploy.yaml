@@ -3,11 +3,15 @@ name: Deploy to Cloudflare Workers
 on:
   push:
     branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  NODE_VERSION: '20'
 
 jobs:
-  deploy:
+  test-and-build:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
 
     steps:
     - name: Checkout code
@@ -21,15 +25,111 @@ jobs:
     - name: Install dependencies
       run: bun install
 
-    - name: Build
-      run: bun run build
+    - name: Lint code
+      run: |
+        if [ -f "biome.json" ] || [ -f ".biomerc" ]; then
+          bun run lint
+        else
+          echo "No linting configuration found, skipping lint step"
+        fi
 
-    - name: Publish to Cloudflare Workers
+    # - name: Run tests
+    #   run: |
+    #     if grep -q '"test"' package.json; then
+    #       bun run test
+    #     else
+    #       echo "No test script found, skipping tests"
+    #     fi
+
+    - name: Build for Cloudflare Workers
+      run: |
+        # Install wrangler if not already in dependencies
+        bun add -d wrangler
+        bun run build
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: worker-build
+        path: |
+          dist/
+          package.json
+          bun.lockb
+          wrangler.jsonc
+
+  deploy-staging:
+    needs: test-and-build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop' || github.event_name == 'pull_request'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: worker-build
+
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v1
+      with:
+        bun-version: 'latest'
+
+    - name: Install dependencies
+      run: bun install
+
+    - name: Deploy to Cloudflare Workers (Staging)
       uses: cloudflare/wrangler-action@v3
       with:
         apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        environment: 'production'
+        environment: 'staging'
+        command: deploy --env=staging
       env:
         CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+    - name: Run post-deployment tests
+      run: |
+        # Optional: Run smoke tests against the deployed staging worker
+        echo "Staging deployment completed!"
+        # Example: curl -f https://your-elysia-app-staging.your-account.workers.dev/health
+
+  deploy-production:
+    needs: test-and-build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: worker-build
+
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v1
+      with:
+        bun-version: 'latest'
+
+    - name: Install dependencies
+      run: bun install
+
+    - name: Deploy to Cloudflare Workers (Production)
+      uses: cloudflare/wrangler-action@v3
+      with:
+        apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        command: deploy --env=production
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+    - name: Health check
+      run: |
+        echo "Production deployment completed!"
+        # Optional: Add health check for production deployment
+        curl -f https://coins-computer-prod.simpler-times.workers.dev/health

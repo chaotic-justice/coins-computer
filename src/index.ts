@@ -27,5 +27,6 @@ export default new Elysia({
 		}),
 	)
 	.use(openapi())
+	.get("/health", () => `🦊 Elysia is running healthy`)
 	.use(bills)
 	.compile();
