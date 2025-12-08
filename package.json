@@ -24,7 +24,8 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.2.5",
-		"bun-types": "latest"
+		"bun-types": "latest",
+		"wrangler": "^4.53.0"
 	},
 	"module": "src/index.js"
 }
