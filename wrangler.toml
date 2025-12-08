@@ -1,0 +1,22 @@
+name = "coins computer"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+[build]
+command = "bun run build:local"
+upload.format = "modules"
+upload.rules = [{ type = "ESModule", globs = ["**/*.js"] }]
+
+[dev]
+port = 8787
+
+[vars]
+# Environment variables
+# EXAMPLE_ENV_VAR = "value"
+
+[env.staging]
+name = "coins-computer-staging"
+
+[env.production]
+name = "coins-computer-production"

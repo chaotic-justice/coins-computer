@@ -64,4 +64,3 @@ export const bills = new Elysia({ prefix: "/bills" })
 		const optionDetails = selectSubtractionAmountI(total, bills);
 		return optionDetails;
 	});
-
