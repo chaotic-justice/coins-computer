@@ -6,7 +6,6 @@ import {
 	selectSubtractionAmountII,
 	splitBillsEvenly,
 } from "./methods";
-import { CloudflareAdapter } from "elysia/adapter/cloudflare-worker";
 
 // status 422 for invalid index
 
@@ -20,7 +19,7 @@ const BillsBase = t.Object({
 
 export const bills = new Elysia({
 	prefix: "/bills",
-	adapter: CloudflareAdapter,
+	// adapter: CloudflareAdapter,
 })
 	.onTransform(function log({ body, params, path, request: { method } }) {
 		console.log(`${method} ${path}`, {
@@ -31,7 +30,7 @@ export const bills = new Elysia({
 	.post(
 		"/imperfect-ii",
 		({ body, status }) => {
-			const [bills, total] = extractBillsFromBody(body);
+			const [bills, _total] = extractBillsFromBody(body);
 			const selectedAmount = body.amount;
 			const selectedCombination = body.combination;
 			if (selectedAmount === 0) {
@@ -57,7 +56,7 @@ export const bills = new Elysia({
 		body: BillsBase,
 	})
 	.post("/perfect", ({ body, status }) => {
-		const [bills, total] = extractBillsFromBody(body);
+		const [bills, _total] = extractBillsFromBody(body);
 		const stacks = splitBillsEvenly(bills);
 		const subtracted_amount = 0;
 		const stats = displayResults({ ...bills }, stacks, subtracted_amount);
@@ -67,5 +66,4 @@ export const bills = new Elysia({
 		const [bills, total] = extractBillsFromBody(body);
 		const optionDetails = selectSubtractionAmountI(total, bills);
 		return optionDetails;
-	})
-	.compile();
+	});
