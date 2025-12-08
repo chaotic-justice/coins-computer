@@ -1,5 +1,6 @@
 import { openapi } from "@elysiajs/openapi";
 import { Elysia } from "elysia";
+import { CloudflareAdapter } from "elysia/adapter/cloudflare-worker";
 import { bills } from "./bills";
 import cors from "@elysiajs/cors";
 
@@ -9,7 +10,9 @@ const ALLOWED_ORIGINS = [
 	"http://localhost:3001",
 ];
 
-const app = new Elysia()
+export default new Elysia({
+	adapter: CloudflareAdapter,
+})
 	.use(
 		cors({
 			origin: (request): boolean => {
@@ -25,8 +28,8 @@ const app = new Elysia()
 	)
 	.use(openapi())
 	.use(bills)
-	.listen(3000);
+	.compile();
 
-console.log(
-	`🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
-);
+// console.log(
+// 	`🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
+// );
