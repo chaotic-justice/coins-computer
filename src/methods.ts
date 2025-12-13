@@ -7,7 +7,7 @@ interface RemovalCombination {
 }
 
 interface StackStats {
-	stack: number;
+	index: number;
 	value: number;
 	billCount: number;
 	distribution: Bills;
@@ -125,16 +125,30 @@ function canRemoveAmount(bills: Bills, targetAmount: number): boolean {
 
 function findSubtractionOptions(totalValue: number, bills: Bills): number[] {
 	const remainder = totalValue % 3;
-	if (remainder === 0) {
+	let neededRemainder = remainder;
+	let shouldSearch = remainder !== 0;
+
+	if (!shouldSearch) {
+		// If remainder is 0, check if bills can be evenly distributed
+		// If not, search for subtraction options to make it distributable
+		shouldSearch = !canAchievePerfectDistribution(bills, 0);
+	}
+
+	if (!shouldSearch) {
 		return [];
 	}
 
-	const neededRemainder = remainder;
+	if (remainder === 0) {
+		neededRemainder = 0;
+	}
 	const possibleAmounts: number[] = [];
 
 	const cacheSize = Math.min(100, totalValue);
 	for (let amount = 1; amount <= cacheSize; amount++) {
-		if (amount % 3 === neededRemainder) {
+		if (neededRemainder === 0) {
+			// When divisible by 3 but not distributable, try all amounts
+			possibleAmounts.push(amount);
+		} else if (amount % 3 === neededRemainder) {
 			possibleAmounts.push(amount);
 		}
 	}
@@ -158,7 +172,6 @@ function findSubtractionOptions(totalValue: number, bills: Bills): number[] {
 	if (validAmounts.length < 5) {
 		for (let amount = cacheSize + 1; amount < totalValue; amount++) {
 			if (
-				amount % 3 === neededRemainder &&
 				canRemoveAmount(bills, amount) &&
 				canAchievePerfectDistribution(bills, amount)
 			) {
@@ -346,26 +359,33 @@ function selectSubtractionAmountI(
 	totalValue: number,
 	bills: Bills,
 ): Array<{
-	amount: number;
+	newTotal: number;
+	amountSubtracted: number;
 	combination: RemovalCombination | null;
 	description: string;
 }> {
 	const subtractionOptions = findSubtractionOptions(totalValue, bills);
-	console.log("subtractionOptions", subtractionOptions);
 
 	if (subtractionOptions.length === 0) {
 		return [];
 	}
 
 	const optionDetails: Array<{
-		amount: number;
+		newTotal: number;
+		amountSubtracted: number;
 		combination: RemovalCombination | null;
 		description: string;
 	}> = [];
-	for (const amount of subtractionOptions) {
-		const combination = getRemovalCombination(bills, amount);
+	for (const amountSubtracted of subtractionOptions) {
+		const newTotal = totalValue - amountSubtracted;
+		const combination = getRemovalCombination(bills, amountSubtracted);
 		const description = describeRemovalCombination(combination);
-		optionDetails.push({ amount, combination, description });
+		optionDetails.push({
+			newTotal,
+			amountSubtracted,
+			combination,
+			description,
+		});
 	}
 
 	return optionDetails;
@@ -516,32 +536,12 @@ function calculateStackStats(stacks: Bills[]): StackStats[] {
 		}
 
 		stats.push({
-			stack: i + 1,
+			index: i + 1,
 			value: totalValue,
 			billCount: totalBills,
 			distribution: { ...stack },
 		});
 	}
-	return stats;
-}
-
-function displayResults(
-	originalBills: Bills,
-	stacks: Bills[],
-	subtractedAmount: number,
-): StackStats[] {
-	let totalOriginalValue = 0;
-	for (const [denom, count] of Object.entries(originalBills)) {
-		totalOriginalValue += parseInt(denom, 10) * count;
-	}
-
-	const stats = calculateStackStats(stacks);
-	const totalRemainingValue = stats.reduce((sum, stat) => sum + stat.value, 0);
-	const targetPerStack = Math.floor(totalRemainingValue / 3);
-
-	const values = stats.map((stat) => stat.value);
-	const billsCount = stats.map((stat) => stat.billCount);
-
 	return stats;
 }
 
@@ -560,7 +560,6 @@ export {
 	splitBillsEvenly,
 	refineDistribution,
 	calculateStackStats,
-	displayResults,
 	extractBillsFromBody,
 };
 

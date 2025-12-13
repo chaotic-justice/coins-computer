@@ -1,10 +1,13 @@
 import Elysia, { t } from "elysia";
 import {
-	displayResults,
+	Bills,
+	calculateStackStats,
 	extractBillsFromBody,
+	RemovalCombination,
 	selectSubtractionAmountI,
 	selectSubtractionAmountII,
 	splitBillsEvenly,
+	StackStats,
 } from "./methods";
 
 // status 422 for invalid index
@@ -19,7 +22,6 @@ const BillsBase = t.Object({
 
 export const bills = new Elysia({
 	prefix: "/bills",
-	// adapter: CloudflareAdapter,
 })
 	.onTransform(function log({ body, params, path, request: { method } }) {
 		console.log(`${method} ${path}`, {
@@ -31,23 +33,25 @@ export const bills = new Elysia({
 		"/imperfect-ii",
 		({ body, status }) => {
 			const [bills, _total] = extractBillsFromBody(body);
-			const selectedAmount = body.amount;
+			const desiredTotal = body.newTotal;
 			const selectedCombination = body.combination;
-			if (selectedAmount === 0) {
+			if (desiredTotal === 0) {
 				return status(400, "selected_amount must be greater than 0");
 			}
-			const {
-				remainingBills: billsAfterRemoval,
-				selectedAmount: subtractedAmount,
-			} = selectSubtractionAmountII(selectedAmount, selectedCombination, bills);
+			// TODO: delete this endpoint
+			const { remainingBills: billsAfterRemoval } = selectSubtractionAmountII(
+				desiredTotal,
+				selectedCombination,
+				bills,
+			);
 			const stacks = splitBillsEvenly(billsAfterRemoval);
-			const stats = displayResults(billsAfterRemoval, stacks, subtractedAmount);
+			const stats = calculateStackStats(stacks);
 			return stats;
 		},
 		{
 			body: t.Object({
 				...BillsBase.properties,
-				amount: t.Number(),
+				newTotal: t.Number(),
 				combination: t.Record(t.String(), t.Number()),
 			}),
 		},
@@ -58,12 +62,44 @@ export const bills = new Elysia({
 	.post("/perfect", ({ body, status }) => {
 		const [bills, _total] = extractBillsFromBody(body);
 		const stacks = splitBillsEvenly(bills);
-		const subtracted_amount = 0;
-		const stats = displayResults({ ...bills }, stacks, subtracted_amount);
+		const stats = calculateStackStats(stacks);
 		return stats;
 	})
-	.post("/imperfect-i", ({ body, status }) => {
+	.post("/imperfect", ({ body, status }) => {
 		const [bills, total] = extractBillsFromBody(body);
 		const optionDetails = selectSubtractionAmountI(total, bills);
-		return optionDetails;
+
+		const res = optionDetails.reduce(
+			(
+				acc: Array<{
+					newTotal: number;
+					amountSubtracted: number;
+					combination: RemovalCombination | null;
+					description: string;
+					stats: StackStats[];
+				}>,
+				option,
+			) => {
+				const billsCopy: Bills = Object.fromEntries(
+					Object.entries(bills).map(([denom, count]) => [denom, count]),
+				);
+				const { newTotal: desiredTotal, combination: selectedCombination } =
+					option;
+				const { remainingBills: billsAfterRemoval } = selectSubtractionAmountII(
+					desiredTotal,
+					selectedCombination,
+					billsCopy,
+				);
+				const stacks = splitBillsEvenly(billsAfterRemoval);
+				const stats = calculateStackStats(stacks);
+				acc = acc.concat({
+					...option,
+					stats,
+				});
+				return acc;
+			},
+			[],
+		);
+
+		return res;
 	});
