@@ -21,7 +21,8 @@
 	"dependencies": {
 		"@elysiajs/cors": "^1.4.0",
 		"@elysiajs/openapi": "^1.4.11",
-		"elysia": "latest"
+		"elysia": "latest",
+		"elysia-remote-dts": "^1.0.3"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.2.5",

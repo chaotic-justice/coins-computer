@@ -1,14 +1,11 @@
 import cors from "@elysiajs/cors";
-import { openapi } from "@elysiajs/openapi";
+import { fromTypes, openapi } from "@elysiajs/openapi";
 import { Elysia } from "elysia";
+import { dts } from "elysia-remote-dts";
 import { CloudflareAdapter } from "elysia/adapter/cloudflare-worker";
 import { bills } from "./bills";
 
-const ALLOWED_ORIGINS = [
-	"http://localhost:8787",
-	"http://localhost:5173",
-	"http://localhost:3001",
-];
+const ALLOWED_ORIGINS = ["http://localhost:8787", "http://localhost:5173"];
 
 export default new Elysia({
 	adapter: CloudflareAdapter,
@@ -26,7 +23,16 @@ export default new Elysia({
 			},
 		}),
 	)
-	.use(openapi())
+	.use(
+		openapi({
+			references: fromTypes(
+				process.env.NODE_ENV === "production"
+					? "dist/index.d.ts"
+					: "src/index.ts",
+			),
+		}),
+	)
 	.get("/health", () => `🦊 Elysia is running healthy`)
 	.use(bills)
+	.use(dts(".src/index.ts"))
 	.compile();
