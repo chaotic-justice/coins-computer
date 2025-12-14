@@ -7,7 +7,7 @@ import { bills } from "./bills";
 
 const ALLOWED_ORIGINS = ["http://localhost:8787", "http://localhost:5173"];
 
-export default new Elysia({
+const app = new Elysia({
 	adapter: CloudflareAdapter,
 })
 	.use(
@@ -34,5 +34,16 @@ export default new Elysia({
 	)
 	.get("/health", () => `🦊 Elysia is running healthy`)
 	.use(bills)
-	.use(dts(".src/index.ts"))
+	.use(
+		dts("./src/index.ts", {
+			tsconfig: "./tsconfig.json",
+			compilerOptions: {
+				strict: true,
+			},
+			dtsPath: "/types.d.ts",
+		}),
+	)
 	.compile();
+
+export default app;
+export type App = typeof app;
