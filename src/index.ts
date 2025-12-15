@@ -1,7 +1,6 @@
 import cors from "@elysiajs/cors";
 import { fromTypes, openapi } from "@elysiajs/openapi";
 import { Elysia } from "elysia";
-import { dts } from "elysia-remote-dts";
 import { CloudflareAdapter } from "elysia/adapter/cloudflare-worker";
 import { bills } from "./bills";
 
@@ -34,15 +33,6 @@ const app = new Elysia({
 	)
 	.get("/health", () => `🦊 Elysia is running healthy`)
 	.use(bills)
-	.use(
-		dts("./src/index.ts", {
-			tsconfig: "./tsconfig.json",
-			compilerOptions: {
-				strict: true,
-			},
-			dtsPath: "/types.d.ts",
-		}),
-	)
 	.compile();
 
 export default app;
