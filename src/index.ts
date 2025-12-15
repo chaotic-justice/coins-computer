@@ -26,7 +26,7 @@ const app = new Elysia({
 		openapi({
 			references: fromTypes(
 				process.env.NODE_ENV === "production"
-					? "dist/index.d.ts"
+					? "dist/index.js"
 					: "src/index.ts",
 			),
 		}),

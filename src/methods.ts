@@ -2,15 +2,22 @@ interface Bills {
 	[key: number]: number;
 }
 
-interface RemovalCombination {
-	[key: number]: number;
-}
-
 interface StackStats {
 	index: number;
 	value: number;
 	billCount: number;
 	distribution: Bills;
+}
+
+interface SubtractionCombo {
+	newTotal: number;
+	amountSubtracted: number;
+	combination: Bills | null;
+	description: string;
+}
+
+interface SubtractionStackStats extends SubtractionCombo {
+	stackStats: StackStats[];
 }
 
 interface BodyInput {
@@ -19,8 +26,6 @@ interface BodyInput {
 	"20": number;
 	"50": number;
 	"100": number;
-	selectedAmount?: number;
-	selectedCombination?: number[];
 }
 
 function memoize<T extends (...args: any[]) => any>(fn: T): T {
@@ -272,15 +277,15 @@ function removeBillsToReachAmountTest(
 function getRemovalCombination(
 	bills: Bills,
 	targetAmount: number,
-): RemovalCombination | null {
+): Bills | null {
 	const denominations = [100, 50, 20, 10, 5];
-	const memo = new Map<string, RemovalCombination | null>();
+	const memo = new Map<string, Bills | null>();
 
 	const findCombination = (
 		remainingAmount: number,
 		denomIndex: number,
 		billsRemaining: number[],
-	): RemovalCombination | null => {
+	): Bills | null => {
 		if (remainingAmount === 0) {
 			return {};
 		}
@@ -328,9 +333,7 @@ function getRemovalCombination(
 	return findCombination(targetAmount, 0, billsList);
 }
 
-function describeRemovalCombination(
-	combination: RemovalCombination | null,
-): string {
+function describeRemovalCombination(combination: Bills | null): string {
 	if (!combination || Object.keys(combination).length === 0) {
 		return "No bills need to be removed";
 	}
@@ -358,29 +361,19 @@ function describeRemovalCombination(
 function selectSubtractionAmountI(
 	totalValue: number,
 	bills: Bills,
-): Array<{
-	newTotal: number;
-	amountSubtracted: number;
-	combination: RemovalCombination | null;
-	description: string;
-}> {
+): SubtractionCombo[] {
 	const subtractionOptions = findSubtractionOptions(totalValue, bills);
 
 	if (subtractionOptions.length === 0) {
 		return [];
 	}
 
-	const optionDetails: Array<{
-		newTotal: number;
-		amountSubtracted: number;
-		combination: RemovalCombination | null;
-		description: string;
-	}> = [];
+	const subtractionCombos: SubtractionCombo[] = [];
 	for (const amountSubtracted of subtractionOptions) {
 		const newTotal = totalValue - amountSubtracted;
 		const combination = getRemovalCombination(bills, amountSubtracted);
 		const description = describeRemovalCombination(combination);
-		optionDetails.push({
+		subtractionCombos.push({
 			newTotal,
 			amountSubtracted,
 			combination,
@@ -388,26 +381,26 @@ function selectSubtractionAmountI(
 		});
 	}
 
-	return optionDetails;
+	return subtractionCombos;
 }
 
 function selectSubtractionAmountII(
-	selectedAmount: number,
-	selectedCombination: RemovalCombination | null,
+	desiredTotal: number,
+	selectedCombination: Bills | null,
 	bills: Bills,
-): { remainingBills: Bills; selectedAmount: number } {
+): { remainingBills: Bills; desiredTotal: number } {
 	const remainingBills = removeBillsToReachAmount(
 		{ ...bills },
-		selectedAmount,
+		desiredTotal,
 		selectedCombination,
 	);
-	return { remainingBills, selectedAmount };
+	return { remainingBills, desiredTotal };
 }
 
 function removeBillsToReachAmount(
 	bills: Bills,
 	targetAmount: number,
-	combination: RemovalCombination | null = null,
+	combination: Bills | null = null,
 ): Bills {
 	const removedBills: Bills = { 5: 0, 10: 0, 20: 0, 50: 0, 100: 0 };
 
@@ -563,4 +556,4 @@ export {
 	extractBillsFromBody,
 };
 
-export type { Bills, RemovalCombination, StackStats };
+export type { Bills, StackStats, SubtractionStackStats };

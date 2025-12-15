@@ -1,16 +1,13 @@
 import Elysia, { t } from "elysia";
 import {
-	Bills,
+	type Bills,
 	calculateStackStats,
 	extractBillsFromBody,
-	RemovalCombination,
 	selectSubtractionAmountI,
 	selectSubtractionAmountII,
 	splitBillsEvenly,
-	StackStats,
+	type SubtractionStackStats,
 } from "./methods";
-
-// status 422 for invalid index
 
 const BillsBase = t.Object({
 	"5": t.Number({ minimum: 0 }),
@@ -65,41 +62,35 @@ export const bills = new Elysia({
 		const stats = calculateStackStats(stacks);
 		return stats;
 	})
+	/*
+    {"5": 6,
+    "10": 6,
+    "20": 4,
+    "50": 0,
+    "100": 1} */
 	.post("/imperfect", ({ body, status }) => {
 		const [bills, total] = extractBillsFromBody(body);
 		const optionDetails = selectSubtractionAmountI(total, bills);
 
-		const res = optionDetails.reduce(
-			(
-				acc: Array<{
-					newTotal: number;
-					amountSubtracted: number;
-					combination: RemovalCombination | null;
-					description: string;
-					stats: StackStats[];
-				}>,
-				option,
-			) => {
-				const billsCopy: Bills = Object.fromEntries(
-					Object.entries(bills).map(([denom, count]) => [denom, count]),
-				);
-				const { newTotal: desiredTotal, combination: selectedCombination } =
-					option;
-				const { remainingBills: billsAfterRemoval } = selectSubtractionAmountII(
-					desiredTotal,
-					selectedCombination,
-					billsCopy,
-				);
-				const stacks = splitBillsEvenly(billsAfterRemoval);
-				const stats = calculateStackStats(stacks);
-				acc = acc.concat({
-					...option,
-					stats,
-				});
-				return acc;
-			},
-			[],
-		);
+		const res = optionDetails.reduce((acc: SubtractionStackStats[], option) => {
+			const billsCopy: Bills = Object.fromEntries(
+				Object.entries(bills).map(([denom, count]) => [denom, count]),
+			);
+			const { newTotal: desiredTotal, combination: selectedCombination } =
+				option;
+			const { remainingBills: billsAfterRemoval } = selectSubtractionAmountII(
+				desiredTotal,
+				selectedCombination,
+				billsCopy,
+			);
+			const stacks = splitBillsEvenly(billsAfterRemoval);
+			const stackStats = calculateStackStats(stacks);
+			acc = acc.concat({
+				...option,
+				stackStats,
+			});
+			return acc;
+		}, []);
 
 		return res;
 	});
